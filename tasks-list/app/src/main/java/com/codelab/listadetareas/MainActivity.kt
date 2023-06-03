@@ -29,10 +29,16 @@ fun TaskListScreen() {
     val tasks = remember { mutableStateListOf<Task>() }
     val newTaskTitle = remember { mutableStateOf("") }
     val newTaskDescription = remember { mutableStateOf("") }
+    val searchQuery = remember { mutableStateOf("") }
+    val showCompletedTasks = remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.padding(16.dp)
     ) {
+        SearchBar(searchQuery = searchQuery.value, onSearchQueryChange = { searchQuery.value = it })
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         TaskInput(
             newTaskTitle = newTaskTitle.value,
             newTaskDescription = newTaskDescription.value,
@@ -52,8 +58,12 @@ fun TaskListScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val completedTasks = tasks.filter { it.isComplete }
+        val pendingTasks = tasks.filter { !it.isComplete }
+
         TaskList(
-            tasks = tasks,
+            tasks = pendingTasks,
+            searchQuery = searchQuery.value,
             onTaskCompleteToggle = { taskId ->
                 val task = tasks.find { it.id == taskId }
                 task?.isComplete = !task?.isComplete!!
@@ -62,54 +72,77 @@ fun TaskListScreen() {
                 tasks.removeIf { it.id == taskId }
             }
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (showCompletedTasks.value) {
+            TaskList(
+                tasks = completedTasks,
+                searchQuery = searchQuery.value,
+                onTaskCompleteToggle = { taskId ->
+                    val task = tasks.find { it.id == taskId }
+                    task?.isComplete = !task?.isComplete!!
+                },
+                onTaskDelete = { taskId ->
+                    tasks.removeIf { it.id == taskId }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    tasks.removeAll { it.isComplete }
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Delete Completed Tasks")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { showCompletedTasks.value = false },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Hide Completed Tasks")
+            }
+        } else {
+            Button(
+                onClick = { showCompletedTasks.value = true },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Show Completed Tasks")
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskInput(
-    newTaskTitle: String,
-    newTaskDescription: String,
-    onTitleChange: (String) -> Unit,
-    onDescriptionChange: (String) -> Unit,
-    onAddTask: () -> Unit
-) {
-    Column {
-        TextField(
-            value = newTaskTitle,
-            onValueChange = onTitleChange,
-            label = { Text("Title") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextField(
-            value = newTaskDescription,
-            onValueChange = onDescriptionChange,
-            label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = onAddTask,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text("Add Task")
-        }
-    }
+fun SearchBar(searchQuery: String, onSearchQueryChange: (String) -> Unit) {
+    TextField(
+        value = searchQuery,
+        onValueChange = onSearchQueryChange,
+        label = { Text("Search for title") },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
 fun TaskList(
     tasks: List<Task>,
+    searchQuery: String,
     onTaskCompleteToggle: (Int) -> Unit,
     onTaskDelete: (Int) -> Unit
 ) {
+    val filteredTasks = tasks.filter {
+        it.title.contains(searchQuery, ignoreCase = true) ||
+                it.description.contains(searchQuery, ignoreCase = true)
+    }
+
     LazyColumn {
-        items(items = tasks) { task ->
+        items(items = filteredTasks) { task ->
             TaskItem(
                 task = task,
                 onTaskCompleteToggle = onTaskCompleteToggle,
@@ -151,6 +184,43 @@ fun TaskItem(
                 Icons.Default.Delete,
                 contentDescription = "Delete Task"
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TaskInput(
+    newTaskTitle: String,
+    newTaskDescription: String,
+    onTitleChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
+    onAddTask: () -> Unit
+) {
+    Column {
+        TextField(
+            value = newTaskTitle,
+            onValueChange = onTitleChange,
+            label = { Text("Tasks title") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextField(
+            value = newTaskDescription,
+            onValueChange = onDescriptionChange,
+            label = { Text("Task description") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onAddTask,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Add Task")
         }
     }
 }
